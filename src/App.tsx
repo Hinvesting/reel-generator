@@ -1,11 +1,13 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import type { Scene } from './types';
+import type { Scene, Reel } from './types';
 import { initGemini, generateImage } from './services/geminiService';
 import { initClient, signIn, uploadReelToDrive } from './services/googleDriveService';
+import { saveReel } from './services/firestoreService';
 import SceneCard from './components/SceneCard';
 import Spinner from './components/Spinner';
 import AddSceneModal from './components/AddSceneModal';
 import PreviewModal from './components/PreviewModal';
+import SavedProjectsList from './components/SavedProjectsList'; // Import the new component
 import { PlusIcon, GoogleDriveIcon, ClearIcon, FilmIcon } from './components/icons';
 
 const LOCAL_STORAGE_KEY = 'nmmReelGeneratorProject';
@@ -64,12 +66,32 @@ function App() {
   const [driveError, setDriveError] = useState<string | null>(null);
   const [isGoogleAuthReady, setIsGoogleAuthReady] = useState<boolean>(false);
   const [isUserSignedIn, setIsUserSignedIn] = useState<boolean>(false);
+
   const [currentlyPlaying, setCurrentlyPlaying] = useState<{ type: 'tts'; sceneNumber: number } | null>(null);
   const dragItem = useRef<number | null>(null);
   const dragOverItem = useRef<number | null>(null);
 
   const isAnyGenerationInProgress = isLoading || isSingleGenerating;
   const isAnyActionInProgress = isAnyGenerationInProgress || isSavingToDrive;
+
+  const handleSaveReel = useCallback(async () => {
+    if (!reelTitle.trim() || scenes.length === 0) {
+      alert('Please provide a title and at least one scene before saving.');
+      return;
+    }
+    const reelData: Reel = {
+      title: reelTitle,
+      scenes: scenes,
+      createdAt: new Date(),
+    };
+    try {
+      await saveReel(reelData);
+      alert('Project saved successfully to Firestore!');
+    } catch (e) {
+      console.error('Error saving project to Firestore:', e);
+      alert('Failed to save project.');
+    }
+  }, [reelTitle, scenes]);
 
   useEffect(() => {
     const stateToSave = {
@@ -354,6 +376,9 @@ function App() {
                 <h2 className="text-xl font-semibold font-heading text-secondary-silver">Your Scenes</h2>
                 {scenes.length > 0 && (
                   <div className="flex items-center gap-2">
+                    <button onClick={handleSaveReel} disabled={isAnyActionInProgress} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:opacity-90 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors">
+                       Save Project
+                    </button>
                     <button onClick={() => setIsPreviewModalOpen(true)} disabled={isAnyActionInProgress} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-secondary-sky rounded-md hover:opacity-90 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors">
                       <FilmIcon className="w-4 h-4" /> Preview
                     </button>
@@ -371,22 +396,31 @@ function App() {
                 </div>
               )}
               {isLoading && scenes.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full bg-dark-card/50 rounded-lg p-8">
-                  <Spinner />
-                  <p className="mt-4 text-lg text-gray-400">Warming up the AI...</p>
-                </div>
+                  <div className="flex flex-col items-center justify-center h-full bg-dark-card/50 rounded-lg p-8">
+                      <Spinner />
+                      <p className="mt-4 text-lg text-gray-400">Warming up the AI...</p>
+                  </div>
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {scenes.map((scene, index) => (
-                  <div key={scene.sceneNumber} draggable onDragStart={() => dragItem.current = index} onDragEnter={() => dragOverItem.current = index} onDragEnd={handleDragSort} onDragOver={(e) => e.preventDefault()} className="transition-all">
-                    <SceneCard scene={scene} onPlayTTS={handlePlayTTS} onPauseAudio={handlePauseAudio} onAudioUpload={handleAudioUpload} onUpdateScene={handleUpdateScene} currentlyPlaying={currentlyPlaying} onRegenerate={handleRegenerateScene} isAnyGenerationInProgress={isAnyGenerationInProgress} />
-                  </div>
-                ))}
+                  {scenes.map((scene, index) => (
+                      <div key={scene.sceneNumber} draggable onDragStart={() => dragItem.current = index} onDragEnter={() => dragOverItem.current = index} onDragEnd={handleDragSort} onDragOver={(e) => e.preventDefault()} className="transition-all">
+                          <SceneCard scene={scene} onPlayTTS={handlePlayTTS} onPauseAudio={handlePauseAudio} onAudioUpload={handleAudioUpload} onUpdateScene={handleUpdateScene} currentlyPlaying={currentlyPlaying} onRegenerate={handleRegenerateScene} isAnyGenerationInProgress={isAnyGenerationInProgress} />
+                      </div>
+                  ))}
               </div>
+
+              {/* ADD THE NEW COMPONENT HERE */}
+              <div className="mt-8 bg-dark-card/50 rounded-lg border border-dark-border p-4">
+                 <SavedProjectsList />
+              </div>
+
             </div>
           </main>
         </div>
       </div>
+      <footer className="text-center p-4 text-xs text-gray-400 border-t border-dark-border mt-8">
+        <strong>Disclaimer:</strong> The content generated by this tool is for educational and inspirational purposes only and does not constitute financial advice. New Money Millionaires L.L.C. is not a registered investment advisor. All financial decisions should be made with the guidance of a qualified professional. We are not liable for any actions taken based on the content produced here.
+      </footer>
     </>
   );
 }

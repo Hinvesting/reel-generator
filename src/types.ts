@@ -9,3 +9,10 @@ export interface Scene {
   videoFile?: File; // The actual video file for uploading
   isGeneratingImage: boolean;
 }
+
+export interface Reel {
+  id?: string; // The document ID from Firestore
+  title: string;
+  scenes: Scene[];
+  createdAt: Date;
+}
