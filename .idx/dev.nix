@@ -5,7 +5,7 @@
   ];
   idx.previews = {
     previews = [{
-      command = [ "npm" "run" "dev" "--" "--host" "0.0.0.0" ];
+      command = [ "npm" "run" "dev" "--" "--host" "5.1.7.3" ];
       id = "web";
       manager = "web";
     }];
